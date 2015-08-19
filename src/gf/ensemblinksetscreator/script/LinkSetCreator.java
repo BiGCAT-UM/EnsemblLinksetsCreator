@@ -25,11 +25,6 @@ import org.bridgedb.DataSource;
 import org.bridgedb.IDMapperException;
 import org.bridgedb.bio.DataSourceTxt;
 
-
-
-
-
-
 import com.hp.hpl.jena.datatypes.xsd.XSDDateTime;
 import com.hp.hpl.jena.rdf.model.Literal;
 import com.hp.hpl.jena.rdf.model.Model;
@@ -81,9 +76,6 @@ public class LinkSetCreator {
 		System.out.println(date+"\n"+date2);
 	}
 	public static void lsCreator() throws IOException, ClassNotFoundException, IDMapperException{
-
-//		BufferedReader br = new BufferedReader(new FileReader("/home/bigcat-jonathan/LinkTest/tsv/linkSet17_Hs.tsv"));
-//		BufferedReader br = new BufferedReader(new FileReader("/home/bigcat-jonathan/LinkTest/tsv/linkSet17_Mm.tsv"));
 		BufferedReader br = new BufferedReader(new FileReader(fileTSV));
 		HashMap<String,HashSet<HashMap<String,HashMap<String,HashSet<String>>>>> linkMap = 
 				new HashMap<String,HashSet<HashMap<String,HashMap<String,HashSet<String>>>>>();
@@ -94,6 +86,9 @@ public class LinkSetCreator {
 			while (line != null) {	 
 				String[] split=null;
 				try{
+					if (line.contains("mirbase.mature")){
+						line = line.replaceAll("mirbase.mature", "mirbase");
+					}
 					split = line.split("\t");
 				}
 				catch(NullPointerException e){
@@ -104,11 +99,14 @@ public class LinkSetCreator {
 				String related = split[1].replaceAll("[<>]", "");
 				String xref = split[2].replaceAll("[<>]", "");
 				int index = xref.lastIndexOf("/");
-				
-				if (index>0){
+
+				if (index>0 && !line.contains(IDENTIFIERS_ORG_PREFIX+"go")){
 					String tp = xref.substring(0, index);
 					String db = tp.substring(tp.lastIndexOf("/")+1);
 					DataSource ds = DataSource.getByIdentiferOrgBase(tp);
+					if (db.equals("unigene"))
+						ds =  DataSource.getExistingByFullName("UniGene");
+					
 					if ( !linkMap.containsKey(db) && ds!=null ) {
 						HashMap<String, HashMap<String, HashSet<String>>> predicate = 
 								new HashMap<String, HashMap<String, HashSet<String>>>();
@@ -186,7 +184,11 @@ public class LinkSetCreator {
 						
 //						System.out.println("Database: "+database.getKey()+"\tNb"+uri.getValue().size());
 						
-						for (String xref : uri.getValue()){							
+						for (String xref : uri.getValue()){			
+							if (xref.contains("unigene")){
+								xref = xref.replaceAll("http://identifiers.org/unigene",
+										"http://www.ncbi.nlm.nih.gov/unigene?term=");								
+							}
 							Resource externalIdentifierResource = model.createResource(xref);
 							ref.addProperty(pred, externalIdentifierResource);
 						}
@@ -199,8 +201,6 @@ public class LinkSetCreator {
 					String filename = root
 							+"Ensembl_"+symbolName+"_"+database.getKey()+"."+pred_term+".LS.ttl";
 					
-//					Resource voidResource = createSpecificVoid(voidDataset,"homo_sapiens", 
-//									database.getKey(),fileURI,term,dataSet);
 					
 					Resource voidResource = createSpecificVoid(voidDataset,latinName, 
 							database.getKey(),fileURI,term,dataSet);
@@ -233,9 +233,6 @@ public class LinkSetCreator {
 					throws UnsupportedEncodingException {
 		
 		String dataSourceName = URLEncoder.encode(dataSource, "UTF-8");
-//        String speciesName = "http://purl.obolibrary.org/obo/NCBITaxon_9606";
-//        Mus Musculus: http://purl.obolibrary.org/obo/NCBITaxon_10090
-//        String speciesName = "http://purl.obolibrary.org/obo/NCBITaxon_10090";
         Resource bridgeDB = model.createResource("http://www.bridgedb.org/");
         Resource ensemblLicense = model.createResource("http://www.ensembl.org/info/about/legal/index.html");
         
@@ -269,7 +266,10 @@ public class LinkSetCreator {
 		
 		specificResource.addProperty(Void.objectsTarget, dataSet);// TODO 
 		
-		ds = DataSource.getByIdentiferOrgBase(IDENTIFIERS_ORG_PREFIX+dataSource);
+		if (dataSource.equals("unigene"))
+			ds =  DataSource.getExistingByFullName("UniGene");
+		else
+			ds = DataSource.getByIdentiferOrgBase(IDENTIFIERS_ORG_PREFIX+dataSource);
 		
 		specificResource.addProperty(BridgeDbOPS.objectsDatatype, 
 				model.createResource(getType(ds.getType())));
@@ -287,7 +287,9 @@ public class LinkSetCreator {
 		specificResource.addProperty(BridgeDbOPS.objectsSpecies,model.createResource(taxon));		
 				
 		specificResource.addProperty(Pav.createdBy, model.createResource("http://orcid.org/0000-0001-8624-2972"));
-		specificResource.addProperty(Pav.createdWith, model.createResource("https://github.com/JonathanMELIUS/"));
+		specificResource.addProperty(Pav.createdWith,
+				model.createResource("https://raw.githubusercontent.com/JonathanMELIUS/"
+						+ "EnsemblLinksetsCreator/master/src/gf/ensemblinksetscreator/script/LinkSetCreator.java"));
 		specificResource.addProperty(Pav.createdOn, issuedLieteral);
 		
 //        //Subset back to the species linkset and indirectly the rest
@@ -297,12 +299,10 @@ public class LinkSetCreator {
 	}
 	public static Resource createDataSetVoid(Model voidDataset){
 
-//		Property createdBy =voidDataset.createProperty("http://purl.org/pav/createdBy");
 		Calendar cal = Calendar.getInstance();
         cal.set(2014, 10, 2);
         Literal issuedLieteral = voidDataset.createTypedLiteral(new XSDDateTime(cal));
-        
-//		Resource ensemblDataset = voidDataset.createResource("ensembl_homo_sapiens_rdf_dataset");
+
 		Resource ensemblDataset = voidDataset.createResource("ensembl_"+latinName+"_rdf_dataset");
 		Resource ensembl = voidDataset.createResource("http://www.ensembl.org/");
 		Resource ensemblLicense = voidDataset.createResource("http://www.ensembl.org/info/about/legal/code_licence.html");
@@ -321,7 +321,6 @@ public class LinkSetCreator {
         ensemblDataset.addProperty(DCTerms.license, ensemblLicense);
         ensemblDataset.addProperty(DCTerms.issued, issuedLieteral);
         ensemblDataset.addProperty(Void.dataDump,
-//        		voidDataset.createResource("ftp://ftp.ebi.ac.uk/pub/databases/RDF/ensembl/77/homo_sapiens_77.ttl"));
         voidDataset.createResource("ftp://ftp.ebi.ac.uk/pub/databases/RDF/ensembl/77/"+latinName+"_77.ttl"));
         
         ensemblDataset.addProperty(Pav.version, voidDataset.createLiteral("77"));
@@ -330,8 +329,6 @@ public class LinkSetCreator {
         ensemblDataset.addProperty(Void.uriSpace, uriSpace);
         ensemblDataset.addProperty(Dcat.theme,
         		voidDataset.createResource("http://semanticscience.org/resource/SIO_010035"));
-        
-//      ensemblDataset.addProperty(createdBy, ensembl);
 		return ensemblDataset;		
 	}
 	public static Model modelVoid(){
