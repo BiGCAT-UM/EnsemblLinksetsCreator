@@ -43,7 +43,8 @@ public class LinkSetCreator {
 	private final static String taxonMouse = "http://purl.obolibrary.org/obo/NCBITaxon_10090";
 
 	private static String baseURI = "http://bridgedb.org/data/linksets/";
-	private static String root = "/home/nuno/Downloads/test/";	
+	private static String root = "/home/*/Downloads/test/";	
+	private static String fileTSV = "/home/*/Downloads/test/Ensembl_Hs_dataset.void";
 	
 	private static String latinName;
 	private final static String latinNameHuman = "homo_sapiens";
@@ -54,11 +55,15 @@ public class LinkSetCreator {
 	private static String symbolName;
 	private final static String symbolNameHuman = "Hs";
 	private final static String symbolNameMouse = "Mm";
-	
-	private static String fileTSV = "/home/nuno/Downloads/test/Ensembl_Hs_dataset.void";
-	
+									
 	public static void main(String[] args) throws ClassNotFoundException, IOException, IDMapperException {
 		Date date = new Date();	
+		
+		
+		if(args.length > 0)
+			fileTSV = args[0];
+		if (args.length > 1)
+			root = args[1];
 		
 		taxon=taxonHuman;
 		latinName=latinNameHuman;
@@ -70,11 +75,16 @@ public class LinkSetCreator {
 		
 		DataSourceTxt.init();
 		lsCreator();
-	
-		Date date2 = new Date();	
 		
-		System.out.println(date+"\n"+date2);
+		System.out.println("str: "+date);
+		System.out.println("Reading file " + fileTSV);
+		System.out.println("Outputing to folder " + root);
+		System.out.println("");
+		
+		Date date2 = new Date();	
+		System.out.println("end: "+date2);
 	}
+		
 	public static void lsCreator() throws IOException, ClassNotFoundException, IDMapperException{
 		BufferedReader br = new BufferedReader(new FileReader(fileTSV));
 		HashMap<String,HashSet<HashMap<String,HashMap<String,HashSet<String>>>>> linkMap = 
